@@ -1,25 +1,9 @@
-// Web app + backend in one Bun process. POST /api/fix picks its source in this order:
-//   ?mock=1             -> a mock derived from the posted violations
-//   ANTHROPIC_API_KEY   -> fixPage() from src/engine.ts (Bun reads .env)
-//   FIX_API_URL         -> forwarded to a remote fix API
-//   none of the above   -> the mock
+// Web app + backend in one Bun process. POST /api/fix returns MOCK_RESULT for ?mock=1,
+// otherwise fixPage() from src/engine.ts (Bun reads ANTHROPIC_API_KEY from .env).
 
-import { fixPage, type FixInput } from "./src/engine";
+import { fixPage, MOCK_RESULT, type FixInput } from "./src/engine";
 
-const PORT = Number(process.env.PORT ?? 3000);
-const FIX_API_URL = process.env.FIX_API_URL;
-const FIX_SOURCE = process.env.ANTHROPIC_API_KEY ? "engine" : FIX_API_URL ? "remote" : "mock";
-
-type AxeNode = { target: string[]; html: string; failureSummary?: string };
-type Violation = { id: string; impact?: string; help: string; nodes: AxeNode[] };
-type Patch = {
-  selector: string;
-  op: "setAttr" | "setText" | "addCss";
-  name?: string;
-  value: string;
-  wcag: string;
-  why: string;
-};
+const PORT =Number(process.env.PORT ?? 3000);
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, { status });
@@ -74,90 +58,14 @@ async function getPage(target: string | null): Promise<Response> {
   return json({ url: finalUrl, html });
 }
 
-const MOCK_RULES: Record<string, (node: AxeNode) => Omit<Patch, "selector">> = {
-  "html-has-lang": () => ({
-    op: "setAttr", name: "lang", value: "en", wcag: "3.1.1",
-    why: "Screen readers need the page language to pronounce text correctly",
-  }),
-  "image-alt": () => ({
-    op: "setAttr", name: "alt", value: "Described image (mock)", wcag: "1.1.1",
-    why: "Image had no text alternative",
-  }),
-  "link-name": () => ({
-    op: "setAttr", name: "aria-label", value: "Link destination (mock)", wcag: "2.4.4",
-    why: "Link had no accessible name",
-  }),
-  "select-name": () => ({
-    op: "setAttr", name: "aria-label", value: "Choose an option (mock)", wcag: "4.1.2",
-    why: "Select had no label",
-  }),
-  label: () => ({
-    op: "setAttr", name: "aria-label", value: "Input field (mock)", wcag: "4.1.2",
-    why: "Form field had no label",
-  }),
-  "button-name": () => ({
-    op: "setAttr", name: "aria-label", value: "Button (mock)", wcag: "4.1.2",
-    why: "Button had no accessible name",
-  }),
-  "color-contrast": () => ({
-    op: "setAttr", name: "style", value: "color:#000;background:#fff", wcag: "1.4.3",
-    why: "Text contrast was below 4.5:1",
-  }),
-};
-
-async function mockFix(violations: Violation[]): Promise<Response> {
-  const patches: Patch[] = [];
-  for (const v of violations) {
-    const rule = MOCK_RULES[v.id];
-    if (!rule) continue;
-    for (const node of v.nodes) {
-      const selector = node.target?.[0];
-      if (typeof selector === "string") patches.push({ selector, ...rule(node) });
-    }
-  }
-  patches.push({
-    selector: "", op: "addCss", value: "a:focus-visible { outline: 3px solid #1a5fb4; outline-offset: 2px; }",
-    wcag: "2.4.7", why: "Keyboard focus was not visible on links",
-  });
-  patches.push({
-    selector: "#element-that-does-not-exist", op: "setText", value: "Read more",
-    wcag: "2.4.4", why: "Mock patch with a selector that matches nothing",
-  });
-  await Bun.sleep(900);
-  return json({ summary: `Mock response: ${patches.length} patches derived from the axe results.`, patches });
-}
-
 async function fix(req: Request, mock: boolean): Promise<Response> {
-  let body: { url?: string; html?: string; violations?: Violation[] };
+  if (mock) return json(MOCK_RESULT);
   try {
-    body = await req.json();
-  } catch {
-    return json({ error: "Body must be JSON" }, 400);
-  }
-  if (mock || FIX_SOURCE === "mock") return mockFix(body.violations ?? []);
-
-  if (FIX_SOURCE === "engine") {
-    try {
-      return json(await fixPage({ url: body.url ?? "", html: body.html ?? "", violations: body.violations ?? [] } as FixInput));
-    } catch (err) {
-      console.error(err);
-      return json({ error: `Claude call failed: ${(err as Error).message}` }, 502);
-    }
-  }
-
-  try {
-    const upstream = await fetch(FIX_API_URL!, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(240_000),
-    });
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
-    });
+    const { url, html, violations } = (await req.json()) as FixInput;
+    return json(await fixPage({ url, html, violations }));
   } catch (err) {
-    return json({ error: `Fix API unreachable: ${(err as Error).message}` }, 502);
+    console.error(err);
+    return json({ error: (err as Error).message }, 500);
   }
 }
 
@@ -177,13 +85,15 @@ const server = Bun.serve({
         headers: { "content-type": "application/javascript" },
       });
     }
-    if (url.pathname === "/" || url.pathname === "/index.html") {
-      return new Response(Bun.file(new URL("./public/index.html", import.meta.url)), {
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+    if (req.method === "GET") {
+      // Static files under public/; the prefix check rejects paths that escape it.
+      const relative = url.pathname === "/" ? "index.html" : decodeURIComponent(url.pathname).slice(1);
+      const filePath = resolve(PUBLIC_DIR, relative);
+      const file = Bun.file(filePath);
+      if (filePath.startsWith(PUBLIC_DIR + sep) && (await file.exists())) return new Response(file);
     }
     return json({ error: "Not found" }, 404);
   },
 });
 
-console.log(`http://localhost:${server.port}  (fixes from: ${FIX_SOURCE})`);
+console.log(`http://localhost:${server.port}`);
