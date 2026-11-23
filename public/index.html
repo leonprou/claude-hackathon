@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WCAG Fixer</title>
+<style>
+  :root {
+    --ink: #16181d; --muted: #5a6170; --line: #d9dde5; --bg: #f5f6f8; --card: #fff;
+    --accent: #1a4fd6; --bad: #b3261e; --good: #17703a; --warn: #8a5300;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 24px; }
+  h1 { margin: 0 0 10px; font-size: 20px; }
+  h2 { margin: 0; font-size: 15px; }
+  main { padding: 18px 24px 40px; display: grid; gap: 18px; }
+  form { display: flex; gap: 8px; }
+  input[type=url] { flex: 1; padding: 9px 12px; font: inherit; border: 1px solid #8b93a3; border-radius: 6px; }
+  button { font: inherit; font-weight: 600; padding: 9px 18px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.big { font-size: 17px; padding: 12px 28px; background: var(--good); border-color: var(--good); }
+  :focus-visible { outline: 3px solid #f0a000; outline-offset: 2px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  [hidden] { display: none !important; }
+
+  #status { display: flex; align-items: center; gap: 10px; color: var(--muted); min-height: 24px; }
+  #status.error { color: var(--bad); font-weight: 600; }
+  .spinner { width: 16px; height: 16px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #score { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  #count { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -1px; white-space: nowrap; }
+  #count .before { color: var(--bad); }
+  #count .after { color: var(--good); }
+  #count .arrow { color: var(--muted); margin: 0 10px; }
+  #scoreText { flex: 1; min-width: 260px; }
+  #scoreText .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  #tally { font-weight: 600; margin-top: 4px; }
+
+  #frames { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  #frames.split { grid-template-columns: 1fr 1fr; }
+  figure { margin: 0; }
+  figcaption { font-weight: 700; margin-bottom: 6px; }
+  iframe { width: 100%; height: 460px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
+  #fixHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  #patches { list-style: none; margin: 0; padding: 0; }
+  #patches li { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; padding: 9px 8px; border-top: 1px solid var(--line); align-items: start; }
+  #patches li:hover { background: #f1f4fb; }
+  .wcag { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .change { color: var(--muted); font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; margin-top: 2px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .badge.applied { background: #dcf3e3; color: var(--good); }
+  .badge.skipped { background: #fdebcf; color: var(--warn); }
+  li.skipped .why { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>WCAG Fixer</h1>
+  <form id="form">
+    <input id="url" type="url" required aria-label="Page URL"
+           value="https://www.w3.org/WAI/demos/bad/before/home.html">
+    <button id="analyze" type="submit">Analyze</button>
+  </form>
+</header>
+
+<main>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <section id="score" class="card" hidden aria-label="Violation count">
+    <div id="count"></div>
+    <div id="scoreText">
+      <div class="label">WCAG 2.1 A/AA failing elements</div>
+      <div id="summary"></div>
+      <div id="tally"></div>
+    </div>
+    <button id="fix" class="big" type="button" hidden>Fix</button>
+  </section>
+
+  <section id="frames" hidden aria-label="Page preview">
+    <figure>
+      <figcaption>Before</figcaption>
+      <iframe id="before" title="Original page"></iframe>
+    </figure>
+    <figure id="afterFig" hidden>
+      <figcaption>After</figcaption>
+      <iframe id="after" title="Fixed page"></iframe>
+    </figure>
+  </section>
+
+  <section id="fixes" class="card" hidden>
+    <div id="fixHead">
+      <h2 id="fixTitle">Proposed fixes</h2>
+    </div>
+    <ul id="patches"></ul>
+  </section>
+</main>
+
+<script>
+const AXE_URLS = ["/axe.min.js", "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.14.1/axe.min.js"];
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+const MOCK = new URLSearchParams(location.search).get("mock") === "1";
+
+const $ = (id) => document.getElementById(id);
+const state = { html: "", url: "", patches: [], beforeCount: 0 };
+let axeSource;
+
+function setStatus(text, { busy = false, error = false } = {}) {
+  const el = $("status");
+  el.className = error ? "error" : "";
+  el.replaceChildren();
+  if (busy) el.append(Object.assign(document.createElement("span"), { className: "spinner" }));
+  el.append(text);
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+async function api(path, init) {
+  const res = await fetch(path, init);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body.error) throw new Error(body.error || `${path} answered ${res.status}`);
+  return body;
+}
+
+function loadFrame(frame, html) {
+  return new Promise((resolve) => {
+    frame.addEventListener("load", () => resolve(), { once: true });
+    frame.srcdoc = html;
+  });
+}
+
+async function runAxe(frame) {
+  for (const url of AXE_URLS) {
+    if (axeSource) break;
+    const res = await fetch(url).catch(() => null);
+    if (res?.ok) axeSource = await res.text();
+  }
+  if (!axeSource) throw new Error("Could not load axe-core");
+  frame.contentWindow.eval(axeSource);
+  const result = await frame.contentWindow.axe.run(frame.contentDocument, {
+    runOnly: { type: "tag", values: AXE_TAGS },
+  });
+  const count = result.violations.reduce((n, v) => n + v.nodes.length, 0);
+  return { count, violations: result.violations };
+}
+
+function trimViolations(violations) {
+  return violations.map((v) => ({
+    id: v.id, impact: v.impact, help: v.help,
+    nodes: v.nodes.map((n) => ({ target: n.target, html: n.html, failureSummary: n.failureSummary })),
+  }));
+}
+
+function describeChange(p) {
+  const clip = (s) => (String(s).length > 120 ? String(s).slice(0, 117) + "…" : String(s));
+  if (p.op === "setAttr") return `${p.selector}  →  ${p.name}="${clip(p.value)}"`;
+  if (p.op === "setText") return `${p.selector}  →  text "${clip(p.value)}"`;
+  if (p.op === "addCss") return `CSS  →  ${clip(p.value)}`;
+  return `${p.selector}  →  ${p.op}`;
+}
+
+function renderPatches() {
+  const list = $("patches");
+  list.replaceChildren();
+  state.patches.forEach((p, i) => {
+    const li = el("li");
+    li.dataset.index = i;
+    const body = el("div");
+    body.append(el("div", "why", p.why || ""), el("div", "change", describeChange(p)));
+    li.append(el("span", "wcag", p.wcag || "—"), body, el("span", "badge"));
+    list.append(li);
+  });
+}
+
+function renderCount(after) {
+  const count = $("count");
+  count.replaceChildren(el("span", "before", String(state.beforeCount)));
+  if (after !== undefined) {
+    count.append(el("span", "arrow", "→"), el("span", "after", String(after)));
+  }
+}
+
+/** Apply one patch to doc; returns the number of elements changed (0 = skipped). */
+function applyPatch(doc, p) {
+  if (p.op === "addCss") {
+    let style = doc.getElementById("a11y-fixes");
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = "a11y-fixes";
+      (doc.head || doc.documentElement).append(style);
+    }
+    style.append(p.value + "\n");
+    return 1;
+  }
+  if (p.op !== "setAttr" && p.op !== "setText") return 0;
+  const matches = doc.querySelectorAll(p.selector);
+  for (const node of matches) {
+    if (p.op === "setAttr") node.setAttribute(p.name, p.value);
+    else node.textContent = p.value;
+  }
+  return matches.length;
+}
+
+function resetView() {
+  $("score").hidden = $("fixes").hidden = $("frames").hidden = true;
+  $("fix").hidden = $("afterFig").hidden = true;
+  $("frames").classList.remove("split");
+  $("summary").textContent = $("tally").textContent = "";
+  $("fixTitle").textContent = "Proposed fixes";
+  $("after").removeAttribute("srcdoc");
+}
+
+// Stage 1: fetch the page, audit it, list the fixes Claude proposes.
+async function analyze(target) {
+  resetView();
+  $("analyze").disabled = true;
+  try {
+    setStatus("Fetching the page…", { busy: true });
+    const page = await api("/api/page?url=" + encodeURIComponent(target));
+    state.html = page.html;
+    state.url = page.url;
+
+    $("frames").hidden = false;
+    await loadFrame($("before"), page.html);
+
+    setStatus("Running the WCAG audit…", { busy: true });
+    const audit = await runAxe($("before"));
+    state.beforeCount = audit.count;
+    renderCount();
+    $("score").hidden = false;
+
+    setStatus("Claude is reading the page…", { busy: true });
+    const fixes = await api("/api/fix" + (MOCK ? "?mock=1" : ""), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: page.url, html: page.html, violations: trimViolations(audit.violations) }),
+    });
+    state.patches = Array.isArray(fixes.patches) ? fixes.patches : [];
+    $("summary").textContent = fixes.summary || "";
+    $("fixTitle").textContent = `Proposed fixes (${state.patches.length})`;
+    renderPatches();
+    $("fixes").hidden = false;
+    $("fix").hidden = state.patches.length === 0;
+    $("fix").disabled = false;
+    $("fix").textContent = `Apply ${state.patches.length} fixes`;
+    setStatus(state.patches.length ? "Review the fixes below, then press Fix." : "No fixes were proposed.");
+  } catch (err) {
+    setStatus(err.message, { error: true });
+  } finally {
+    $("analyze").disabled = false;
+  }
+}
+
+// Stage 2: apply the patches to a second copy of the page and re-audit it.
+async function applyFixes() {
+  $("fix").disabled = true;
+  try {
+    setStatus("Applying fixes…", { busy: true });
+    $("afterFig").hidden = false;
+    $("frames").classList.add("split");
+    await loadFrame($("after"), state.html);
+    const doc = $("after").contentDocument;
+
+    let applied = 0, skipped = 0;
+    state.patches.forEach((p, i) => {
+      let matched = 0;
+      try { matched = applyPatch(doc, p); } catch { matched = 0; }
+      const li = $("patches").children[i];
+      const badge = li.querySelector(".badge");
+      li.classList.toggle("skipped", matched === 0);
+      badge.className = "badge " + (matched ? "applied" : "skipped");
+      badge.textContent = matched ? "applied" : "skipped";
+      matched ? applied++ : skipped++;
+    });
+
+    setStatus("Re-running the WCAG audit…", { busy: true });
+    const audit = await runAxe($("after"));
+    renderCount(audit.count);
+    $("tally").textContent = `${applied} applied, ${skipped} skipped`;
+    $("fixTitle").textContent = `Fixes (${state.patches.length})`;
+    $("fix").hidden = true;
+    setStatus("Done. Hover a fix to highlight it in the After page.");
+  } catch (err) {
+    $("fix").disabled = false;
+    setStatus(err.message, { error: true });
+  }
+}
+
+function highlight(event, on) {
+  const li = event.target.closest("li");
+  const doc = $("after").contentDocument;
+  if (!li || !doc || $("afterFig").hidden) return;
+  if (li.contains(event.relatedTarget)) return; // moving between children of the same row
+  const p = state.patches[li.dataset.index];
+  if (!p || !p.selector || p.op === "addCss") return;
+  try {
+    const matches = doc.querySelectorAll(p.selector);
+    for (const node of matches) node.style.outline = on ? "3px solid magenta" : "";
+    if (on && matches[0]) {
+      // Scroll inside the iframe only; scrollIntoView would also scroll this page away from the list.
+      const win = doc.defaultView;
+      const top = matches[0].getBoundingClientRect().top + win.scrollY - win.innerHeight / 2;
+      win.scrollTo({ top, behavior: "smooth" });
+    }
+  } catch { /* invalid selector: nothing to highlight */ }
+}
+
+$("form").addEventListener("submit", (e) => { e.preventDefault(); analyze($("url").value.trim()); });
+$("fix").addEventListener("click", applyFixes);
+$("patches").addEventListener("mouseover", (e) => highlight(e, true));
+$("patches").addEventListener("mouseout", (e) => highlight(e, false));
+</script>
+</body>
+</html>
