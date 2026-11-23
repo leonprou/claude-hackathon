@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WCAG Fixer: proofread any page for accessibility</title>
+<title>Let it be Accessible: proofread any page for accessibility</title>
 <link rel="preload" href="/fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -74,6 +74,10 @@
   h1 em svg { position: absolute; left: -2%; bottom: -.16em; width: 104%; height: .22em; overflow: visible; }
   h1 em path { fill: none; stroke: var(--red); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw .9s .45s cubic-bezier(.6,0,.2,1) forwards; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
+  .ran .hero { padding-block: 18px 22px; align-items: center; }
+  .ran h1 { font-size: clamp(1.9rem, 3.2vw, 2.9rem); }
+  .ran .lede, .ran .tries { display: none; }
+  .ran .progress { padding-block: 4px 0; }
   .lede { margin: 0 0 20px; font-size: 1.1875rem; color: var(--muted); max-width: 46ch; }
   .lede strong { color: var(--ink); font-weight: 700; }
 
@@ -172,6 +176,7 @@
   }
   @keyframes strike { to { transform: rotate(-9deg) scaleX(1); } }
   .num.after { color: var(--green-lit); }
+  .num.after.worse { color: var(--red-lit); }
   .arrow { width: clamp(34px, 5vw, 72px); height: auto; flex: none; color: var(--muted-lit); }
 
   #summary { margin: 0; font-size: 1.125rem; max-width: 60ch; }
@@ -184,6 +189,8 @@
   .ledger thead th { color: var(--muted-lit); font-weight: 600; border-top: 0; }
   .ledger td { font: 600 1rem/1.3 var(--mono); text-align: right; }
   .ledger td.down { color: var(--green-lit); }
+  .ledger td.up { color: var(--red-lit); }
+  .ledger td.up::before { content: "+" attr(data-rise) " "; }
   .ledger th[scope=row]::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 9px; border-radius: 2px; background: var(--sev, #fff); }
 
   .act { display: grid; gap: 14px; justify-items: end; }
@@ -256,6 +263,7 @@
 
   footer { border-top: 2px solid var(--ink); padding-block: 20px 36px; color: var(--muted); font-size: .9375rem; }
   footer p { margin: 0; max-width: 78ch; }
+  footer .credit { margin-top: 8px; color: var(--ink); }
 
   @media (max-width: 900px) {
     .hero, .progress, #intro { grid-template-columns: minmax(0, 1fr); align-items: start; }
@@ -292,19 +300,20 @@
     <div class="strip">
       <span class="brand">
         <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="#1a1714"/><path d="M7 13.5l4 4 8-9" fill="none" stroke="#63d996" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        WCAG Fixer
+        Let it be Accessible
       </span>
       <span class="meta">
         <span>WCAG 2.1 · Level A + AA</span>
         <span>axe-core + Claude</span>
+        <span>Team Oren and Leon</span>
         <span id="mockTag" class="mock" hidden>Mock mode: canned fixes</span>
       </span>
     </div>
 
     <div class="hero">
-      <h1>Proofread the web for <em>everyone<svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4 12 C 60 2, 110 18, 170 9 S 290 3, 396 11"/></svg></em>.</h1>
+      <h1>Let it be <em>accessible<svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4 12 C 60 2, 110 18, 170 9 S 290 3, 396 11"/></svg></em>.</h1>
       <div>
-        <p class="lede">Paste an address. We audit the page, <strong>Claude writes the fixes</strong>, and you watch the failure count fall.</p>
+        <p class="lede">Proofread the web for everyone. Paste an address. We audit the page, <strong>Claude writes the fixes</strong>, and you watch the failure count fall.</p>
         <form id="form">
           <label for="url">Page address</label>
           <div class="field">
@@ -391,6 +400,7 @@
 <footer>
   <div class="wrap">
     <p>Automated checks cover only part of WCAG 2.1. A count of zero means no automated failures were found, not that the page conforms.</p>
+    <p class="credit">Let it be Accessible, a hackathon project by <strong>Oren and Leon</strong>.</p>
   </div>
 </footer>
 
@@ -580,14 +590,16 @@ function renderCount(after) {
     $("countText").textContent = `${state.beforeCount} failing elements found.`;
     return;
   }
-  const before = el("span", "num before struck", String(state.beforeCount));
+  const improved = after < state.beforeCount;
+  const before = el("span", "num before" + (improved ? " struck" : ""), String(state.beforeCount));
   before.style.setProperty("--n", state.beforeCount);
   const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   arrow.setAttribute("class", "arrow");
   arrow.setAttribute("viewBox", "0 0 72 40");
   arrow.innerHTML = '<path d="M4 20h60M48 6l16 14-16 14" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
-  count.replaceChildren(before, arrow, rollingNumber("after", after, state.beforeCount));
-  $("countText").textContent = `${state.beforeCount} failing elements before the fixes, ${after} after.`;
+  count.replaceChildren(before, arrow, rollingNumber(improved ? "after" : "after worse", after, state.beforeCount));
+  $("countText").textContent = `${state.beforeCount} failing elements before the fixes, ${after} after.`
+    + (improved ? "" : " The count did not drop.");
 }
 
 function renderLedger(afterSeverity) {
@@ -605,7 +617,8 @@ function renderLedger(afterSeverity) {
     head.scope = "row";
     head.style.setProperty("--sev", color);
     row.append(head, el("td", "", String(before)));
-    if (afterSeverity) row.append(el("td", after < before ? "down" : "", String(after)));
+    if (afterSeverity) row.append(el("td", after < before ? "down" : after > before ? "up" : "", String(after)));
+    if (after > before) row.lastElementChild.dataset.rise = after - before;
     body.append(row);
   }
   $("ledger").hidden = body.rows.length === 0;
@@ -642,6 +655,7 @@ function applyPatch(doc, p) {
 
 function resetView() {
   $("intro").hidden = true;
+  document.body.classList.add("ran");
   $("score").hidden = $("fixes").hidden = $("frames").hidden = true;
   $("fix").hidden = $("afterFig").hidden = $("stamp").hidden = $("ledger").hidden = true;
   $("panes").classList.remove("split");
