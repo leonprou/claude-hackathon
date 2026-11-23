@@ -44,7 +44,7 @@ export const PROMPT = `Make this page pass WCAG 2.1 AA with the smallest change.
 3. One addCss patch for visual failures. Check every text color against its background yourself. Keep every font, layout, background and hue. Shift each failing color darker or lighter in the same hue until it reaches 4.5:1. Make all text at least 14px with line-height 1.5. Add a focus outline, 44px controls, and a symbol where only color carries meaning. Use !important.
 
 Ops: setAttr (name, value), setText (value), addCss (value; selector ""). name is "" unless setAttr.
-Each patch: WCAG criterion and a one-line reason.`;
+One patch per identical fix: join its selectors with commas. Each patch: WCAG criterion and a reason of at most 6 words.`;
 
 const PATCH_SCHEMA = {
   type: "object",
@@ -95,13 +95,13 @@ export async function fixPage(
     opts.client ?? new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
   const response = await client.beta.messages.create({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 20000,
     betas: ["server-side-fallback-2026-07-01"],
     ...(process.env.FIX_FAST === "0" ? {} : { speed: "fast" }),
     fallbacks: "default",
     system: PROMPT,
     output_config: {
-      effort: opts.effort ?? "medium",
+      effort: opts.effort ?? "low",
       format: { type: "json_schema", schema: PATCH_SCHEMA },
     },
     messages: [
