@@ -3,110 +3,418 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WCAG Fixer</title>
+<title>WCAG Fixer: proofread any page for accessibility</title>
+<link rel="preload" href="/fonts/fraunces-latin-full-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+  @font-face {
+    font-family: "Fraunces"; font-style: normal; font-weight: 100 900; font-display: swap;
+    src: url("/fonts/fraunces-latin-full-normal.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Fraunces"; font-style: italic; font-weight: 100 900; font-display: swap;
+    src: url("/fonts/fraunces-latin-wght-italic.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Atkinson Next"; font-style: normal; font-weight: 200 800; font-display: swap;
+    src: url("/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Atkinson Mono"; font-style: normal; font-weight: 200 800; font-display: swap;
+    src: url("/fonts/atkinson-hyperlegible-mono-latin-wght-normal.woff2") format("woff2");
+  }
+  @property --n { syntax: "<integer>"; initial-value: 0; inherits: true; }
+
   :root {
-    --ink: #16181d; --muted: #5a6170; --line: #d9dde5; --bg: #f5f6f8; --card: #fff;
-    --accent: #1a4fd6; --bad: #b3261e; --good: #17703a; --warn: #8a5300;
+    --paper: #f5efe3; --sheet: #fffdf8; --ink: #1a1714; --muted: #5a5147;
+    --rule: #d6cbb7; --edge: #776b5b;
+    --red: #b3261e; --green: #14633a; --amber: #7a4700; --focus: #1740d6;
+    --red-lit: #ff7a66; --green-lit: #63d996; --muted-lit: #c2b7a6;
+    --display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --body: "Atkinson Next", "Atkinson Hyperlegible", Verdana, "Segoe UI", sans-serif;
+    --mono: "Atkinson Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --wrap: min(1320px, 100% - clamp(32px, 6vw, 96px));
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 24px; }
-  h1 { margin: 0 0 10px; font-size: 20px; }
-  h2 { margin: 0; font-size: 15px; }
-  main { padding: 18px 24px 40px; display: grid; gap: 18px; }
-  form { display: flex; gap: 8px; }
-  input[type=url] { flex: 1; padding: 9px 12px; font: inherit; border: 1px solid #8b93a3; border-radius: 6px; }
-  button { font: inherit; font-weight: 600; padding: 9px 18px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
-  button:disabled { opacity: .5; cursor: default; }
-  button.big { font-size: 17px; padding: 12px 28px; background: var(--good); border-color: var(--good); }
-  :focus-visible { outline: 3px solid #f0a000; outline-offset: 2px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
   [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body {
+    min-height: 100vh; display: flex; flex-direction: column;
+    margin: 0; color: var(--ink); background-color: var(--paper);
+    font: 400 1.0625rem/1.5 var(--body);
+  }
+  .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  .wrap { width: var(--wrap); margin-inline: auto; }
 
-  #status { display: flex; align-items: center; gap: 10px; color: var(--muted); min-height: 24px; }
-  #status.error { color: var(--bad); font-weight: 600; }
-  .spinner { width: 16px; height: 16px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+  .skip {
+    position: absolute; left: 16px; top: -80px; z-index: 10; padding: 12px 18px;
+    background: var(--ink); color: var(--sheet); font-weight: 700; border-radius: 0 0 8px 8px;
+  }
+  .skip:focus { top: 0; outline-color: #ffd84d; }
+
+  /* ---------- masthead ---------- */
+  .masthead { border-bottom: 2px solid var(--ink); }
+  .strip {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between;
+    padding-block: 14px; border-bottom: 1px solid var(--rule);
+    font: 600 .8125rem/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  }
+  .brand { display: inline-flex; align-items: center; gap: 10px; }
+  .brand svg { width: 26px; height: 26px; flex: none; }
+  .strip .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+  .mock { background: var(--ink); color: var(--sheet); padding: 3px 9px; border-radius: 3px; }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: end; padding-block: clamp(28px, 5vw, 64px) clamp(24px, 3.4vw, 44px); }
+  h1 {
+    margin: 0; font: 600 clamp(2.6rem, 6.2vw, 5.6rem)/.96 var(--display);
+    font-variation-settings: "SOFT" 60, "WONK" 1; letter-spacing: -.025em; text-wrap: balance;
+  }
+  h1 em { font-style: italic; font-weight: 500; color: var(--red); position: relative; white-space: nowrap; }
+  h1 em svg { position: absolute; left: -2%; bottom: -.16em; width: 104%; height: .22em; overflow: visible; }
+  h1 em path { fill: none; stroke: var(--red); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw .9s .45s cubic-bezier(.6,0,.2,1) forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .lede { margin: 0 0 20px; font-size: 1.1875rem; color: var(--muted); max-width: 46ch; }
+  .lede strong { color: var(--ink); font-weight: 700; }
+
+  form label { display: block; font: 700 .8125rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .field { display: flex; gap: 0; border: 2px solid var(--ink); border-radius: 10px; background: var(--sheet); box-shadow: 6px 6px 0 var(--red); }
+  .field:focus-within { box-shadow: 6px 6px 0 var(--focus); }
+  input[type=url] {
+    flex: 1; min-width: 0; min-height: 56px; padding: 12px 16px; border: 0; border-radius: 8px 0 0 8px;
+    background: transparent; color: var(--ink); font: 500 1rem/1.3 var(--mono);
+  }
+  input[type=url]:focus-visible { outline-offset: -5px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button[aria-disabled=true] { cursor: progress; }
+  .go {
+    min-height: 56px; padding: 0 26px; border: 0; border-left: 2px solid var(--ink); border-radius: 0 7px 7px 0;
+    background: var(--ink); color: var(--sheet); font-weight: 700; font-size: 1.0625rem; letter-spacing: .01em;
+    transition: background-color .15s;
+  }
+  .go:hover { background: #3a332b; }
+  .go:focus-visible { outline-offset: -6px; outline-color: #ffd84d; }
+  .go[aria-disabled=true] { background: #5a5147; }
+
+  .tries { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 18px; font-size: .9375rem; color: var(--muted); }
+  .tries button {
+    min-height: 36px; padding: 4px 14px; border: 1.5px solid var(--edge); border-radius: 99px;
+    background: transparent; color: var(--ink); font-weight: 600; transition: background-color .15s, transform .15s;
+  }
+  .tries button:hover { background: var(--sheet); transform: translateY(-1px); }
+
+  /* ---------- progress ---------- */
+  .progress { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px clamp(24px, 4vw, 64px); align-items: center; padding-block: 18px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 0; counter-reset: step; }
+  .steps li {
+    counter-increment: step; display: flex; align-items: center; gap: 9px; padding-right: 10px; white-space: nowrap;
+    font-weight: 600; color: var(--muted);
+  }
+  .steps li:not(:last-child)::after { content: ""; width: clamp(10px, 1.8vw, 30px); height: 2px; background: var(--rule); margin-left: 4px; }
+  .steps .dot {
+    display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%;
+    border: 2px solid var(--edge); font: 700 .8125rem/1 var(--mono); background: var(--paper);
+  }
+  .steps .dot::before { content: counter(step); }
+  .steps li[data-state=now] { color: var(--ink); }
+  .steps li[data-state=now] .dot { border-color: var(--ink); background: var(--ink); color: var(--sheet); animation: pulse 1.4s ease-in-out infinite; }
+  .steps li[data-state=done] { color: var(--ink); }
+  .steps li[data-state=done] .dot { border-color: var(--green); background: var(--green); color: #fff; }
+  .steps li[data-state=done] .dot::before { content: ""; width: 11px; height: 6px; border: solid #fff; border-width: 0 0 2.5px 2.5px; transform: translateY(-2px) rotate(-45deg); }
+  .steps li[data-state=done]:not(:last-child)::after { background: var(--green); }
+  .steps li[data-state=fail] { color: var(--red); }
+  .steps li[data-state=fail] .dot { border-color: var(--red); background: var(--red); color: #fff; }
+  .steps li[data-state=fail] .dot::before { content: "!"; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgb(26 23 20 / .14); } }
+
+  #status { display: flex; align-items: center; gap: 10px; min-height: 28px; font-weight: 600; }
+  #status.error { color: var(--red); }
+  #status.error::before {
+    content: "!"; display: grid; place-items: center; width: 24px; height: 24px; flex: none;
+    border-radius: 50%; background: var(--red); color: #fff; font: 700 .9375rem/1 var(--mono);
+  }
+  .spinner { width: 18px; height: 18px; flex: none; border: 3px solid var(--rule); border-top-color: var(--ink); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .elapsed { font: 500 .9375rem/1 var(--mono); color: var(--muted); }
 
-  #score { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-  #count { font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -1px; white-space: nowrap; }
-  #count .before { color: var(--bad); }
-  #count .after { color: var(--good); }
-  #count .arrow { color: var(--muted); margin: 0 10px; }
-  #scoreText { flex: 1; min-width: 260px; }
-  #scoreText .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
-  #tally { font-weight: 600; margin-top: 4px; }
+  main { flex: 1; align-content: start; display: grid; gap: clamp(20px, 2.6vw, 34px); padding-bottom: 56px; }
+  main > section { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  h2 { margin: 0; font: 600 1.5rem/1.15 var(--display); letter-spacing: -.01em; }
+  .eyebrow { font: 700 .8125rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 
-  #frames { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  #frames.split { grid-template-columns: 1fr 1fr; }
-  figure { margin: 0; }
-  figcaption { font-weight: 700; margin-bottom: 6px; }
-  iframe { width: 100%; height: 460px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  #intro { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 3vw, 44px); padding-block: clamp(8px, 2vw, 28px); }
+  #intro div { border-top: 2px solid var(--ink); padding-top: 14px; }
+  #intro b { display: block; font: 600 clamp(2.4rem, 4vw, 3.6rem)/1 var(--display); font-variation-settings: "SOFT" 100; color: var(--red); }
+  #intro h2 { margin: 10px 0 6px; }
+  #intro p { margin: 0; color: var(--muted); max-width: 38ch; }
 
-  #fixHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  /* ---------- score ---------- */
+  #score {
+    background: var(--ink); color: var(--sheet); border-radius: 18px;
+    padding: clamp(22px, 3vw, 40px); display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: clamp(20px, 3.4vw, 56px); align-items: center;
+  }
+  #score :focus-visible { outline-color: #ffd84d; }
+  #score h2 { color: var(--muted-lit); font: 700 .8125rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+  #count { display: flex; align-items: center; gap: clamp(10px, 1.6vw, 26px); margin-top: 6px; font-family: var(--display); font-variation-settings: "SOFT" 100, "WONK" 0; }
+  .num { font-size: 0; transition: --n 1.2s cubic-bezier(.16,.8,.24,1); }
+  .num::after {
+    counter-reset: n var(--n); content: counter(n);
+    font-size: clamp(4.5rem, 11vw, 10rem); font-weight: 700; line-height: .86; letter-spacing: -.04em;
+  }
+  .num.before { color: var(--red-lit); }
+  .num.before.struck { position: relative; opacity: .82; }
+  .num.before.struck::before {
+    content: ""; position: absolute; left: -4%; right: -4%; top: 50%; height: clamp(5px, .7vw, 9px);
+    background: var(--red-lit); border-radius: 9px; transform: rotate(-9deg) scaleX(0); transform-origin: left;
+    animation: strike .5s .15s cubic-bezier(.6,0,.2,1) forwards;
+  }
+  @keyframes strike { to { transform: rotate(-9deg) scaleX(1); } }
+  .num.after { color: var(--green-lit); }
+  .arrow { width: clamp(34px, 5vw, 72px); height: auto; flex: none; color: var(--muted-lit); }
+
+  #summary { margin: 0; font-size: 1.125rem; max-width: 60ch; }
+  #summary:empty { display: none; }
+  #tally { margin-top: 8px; font: 600 .9375rem/1.3 var(--mono); color: var(--muted-lit); }
+  #tally:empty { display: none; }
+  .ledger { border-collapse: collapse; margin-top: 16px; font-size: .9375rem; }
+  .ledger caption { text-align: left; white-space: nowrap; color: var(--muted-lit); padding-bottom: 6px; font: 700 .75rem/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+  .ledger th, .ledger td { padding: 5px 22px 5px 0; text-align: left; border-top: 1px solid rgb(255 253 248 / .2); }
+  .ledger thead th { color: var(--muted-lit); font-weight: 600; border-top: 0; }
+  .ledger td { font: 600 1rem/1.3 var(--mono); text-align: right; }
+  .ledger td.down { color: var(--green-lit); }
+  .ledger th[scope=row]::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 9px; border-radius: 2px; background: var(--sev, #fff); }
+
+  .act { display: grid; gap: 14px; justify-items: end; }
+  #fix {
+    min-height: 64px; padding: 0 30px; border: 0; border-radius: 12px; background: var(--green-lit); color: #0c1f14;
+    font: 700 1.25rem/1 var(--body); box-shadow: 0 6px 0 #1f7a4a; transition: transform .12s, box-shadow .12s;
+  }
+  #fix:hover { transform: translateY(-2px); box-shadow: 0 8px 0 #1f7a4a; }
+  #fix:active { transform: translateY(4px); box-shadow: 0 2px 0 #1f7a4a; }
+  #fix[aria-disabled=true] { background: #9db8a8; box-shadow: 0 6px 0 #4c5e53; transform: none; }
+  #stamp {
+    display: grid; justify-items: center; gap: 2px; padding: 12px 20px; border: 4px double var(--green-lit); border-radius: 10px;
+    color: var(--green-lit); transform: rotate(-6deg); text-align: center;
+    animation: stamp .45s cubic-bezier(.2,1.6,.4,1) both;
+  }
+  #stamp b { font: 700 clamp(1.9rem, 3.2vw, 2.9rem)/1 var(--display); letter-spacing: -.02em; }
+  #stamp span { font: 700 .75rem/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  @keyframes stamp { from { opacity: 0; transform: rotate(-6deg) scale(1.9); } }
+
+  /* ---------- preview ---------- */
+  .head { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 14px 4px 6px;
+    border: 1.5px solid var(--edge); border-radius: 99px; background: var(--sheet); font-weight: 600; font-size: .9375rem;
+  }
+  .toggle i { position: relative; width: 38px; height: 22px; border-radius: 99px; background: var(--edge); transition: background-color .15s; }
+  .toggle i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .toggle[aria-pressed=true] i { background: var(--red); }
+  .toggle[aria-pressed=true] i::after { transform: translateX(16px); }
+  #panes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  #panes.split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  figure { margin: 0; border: 2px solid var(--ink); border-radius: 12px; overflow: hidden; background: var(--sheet); box-shadow: 6px 6px 0 var(--ink); }
+  #afterFig { border-color: var(--green); box-shadow: 6px 6px 0 var(--green); animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+  figcaption { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-bottom: 2px solid var(--ink); background: var(--paper); }
+  #afterFig figcaption { border-color: var(--green); }
+  .tag { flex: none; padding: 3px 10px; border-radius: 4px; background: var(--red); color: #fff; font: 700 .75rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+  #afterFig .tag { background: var(--green); }
+  .addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 .875rem/1.3 var(--mono); color: var(--muted); }
+  iframe { display: block; width: 100%; height: clamp(380px, 62vh, 640px); border: 0; background: #fff; }
+
+  /* ---------- fixes ---------- */
+  #fixes { background: var(--sheet); border: 2px solid var(--ink); border-radius: 14px; padding: clamp(18px, 2.4vw, 30px); }
+  #fixes .hint { margin: 0; color: var(--muted); font-size: .9375rem; }
   #patches { list-style: none; margin: 0; padding: 0; }
-  #patches li { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; padding: 9px 8px; border-top: 1px solid var(--line); align-items: start; }
-  #patches li:hover { background: #f1f4fb; }
-  .wcag { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .change { color: var(--muted); font: 12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; margin-top: 2px; }
-  .badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
-  .badge.applied { background: #dcf3e3; color: var(--good); }
-  .badge.skipped { background: #fdebcf; color: var(--warn); }
-  li.skipped .why { color: var(--muted); }
+  #patches li {
+    display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; gap: 6px 22px; align-items: start;
+    padding: 16px 12px; border-top: 1px solid var(--rule); border-left: 4px solid transparent;
+    animation: rise .4s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(min(var(--i), 14) * 35ms);
+    transition: background-color .15s, border-color .15s;
+  }
+  #patches li:hover, #patches li:focus-within { background: #f6efdf; border-left-color: var(--red); }
+  .wcag { display: grid; gap: 2px; }
+  .wcag b { font: 700 1.375rem/1 var(--display); font-variation-settings: "SOFT" 100; }
+  .wcag span { font-size: .8125rem; line-height: 1.25; color: var(--muted); }
+  .why { font-weight: 600; }
+  .change { margin-top: 5px; color: var(--muted); font: 500 .875rem/1.45 var(--mono); overflow-wrap: anywhere; }
+  .side { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: end; }
+  .locate {
+    min-height: 36px; padding: 4px 12px; border: 1.5px solid var(--edge); border-radius: 8px; background: transparent;
+    font-weight: 600; font-size: .875rem; white-space: nowrap;
+  }
+  .locate:hover { background: var(--ink); border-color: var(--ink); color: var(--sheet); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 99px; font: 700 .75rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .badge:empty { display: none; }
+  .badge.applied { background: #d9f0e1; color: var(--green); }
+  .badge.applied::before { content: ""; width: 9px; height: 5px; border: solid currentColor; border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+  .badge.skipped { background: #f9e4bd; color: var(--amber); }
+  .badge.skipped::before { content: ""; width: 9px; height: 2px; background: currentColor; }
+  li.skipped .why { color: var(--muted); font-weight: 500; }
+
+  footer { border-top: 2px solid var(--ink); padding-block: 20px 36px; color: var(--muted); font-size: .9375rem; }
+  footer p { margin: 0; max-width: 78ch; }
+
+  @media (max-width: 900px) {
+    .hero, .progress, #intro { grid-template-columns: minmax(0, 1fr); align-items: start; }
+    #score { grid-template-columns: minmax(0, 1fr); }
+    .act { justify-items: start; }
+    #panes.split { grid-template-columns: minmax(0, 1fr); }
+    #patches li { grid-template-columns: minmax(0, 1fr); }
+    .side { justify-content: start; }
+  }
+  @media (max-width: 520px) {
+    .field { flex-direction: column; }
+    input[type=url] { border-radius: 8px 8px 0 0; }
+    .go { border-left: 0; border-top: 2px solid var(--ink); border-radius: 0 0 7px 7px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    h1 em path { stroke-dashoffset: 0; }
+    .num.before.struck::before { transform: rotate(-9deg); }
+    .spinner { border-top-color: var(--rule); border-style: dotted; }
+  }
+  @media (forced-colors: active) {
+    .field, figure, #fix { box-shadow: none; }
+    #score, #fix, .go, .tag, .mock { border: 2px solid; }
+    .steps .dot, .toggle i { forced-color-adjust: none; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>WCAG Fixer</h1>
-  <form id="form">
-    <input id="url" type="url" required aria-label="Page URL"
-           value="https://www.w3.org/WAI/demos/bad/before/home.html">
-    <button id="analyze" type="submit">Analyze</button>
-  </form>
+<a class="skip" href="#main">Skip to results</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="strip">
+      <span class="brand">
+        <svg viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="5" fill="#1a1714"/><path d="M7 13.5l4 4 8-9" fill="none" stroke="#63d996" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        WCAG Fixer
+      </span>
+      <span class="meta">
+        <span>WCAG 2.1 · Level A + AA</span>
+        <span>axe-core + Claude</span>
+        <span id="mockTag" class="mock" hidden>Mock mode: canned fixes</span>
+      </span>
+    </div>
+
+    <div class="hero">
+      <h1>Proofread the web for <em>everyone<svg viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M4 12 C 60 2, 110 18, 170 9 S 290 3, 396 11"/></svg></em>.</h1>
+      <div>
+        <p class="lede">Paste an address. We audit the page, <strong>Claude writes the fixes</strong>, and you watch the failure count fall.</p>
+        <form id="form">
+          <label for="url">Page address</label>
+          <div class="field">
+            <input id="url" type="url" required autocomplete="url" spellcheck="false"
+                   value="https://www.w3.org/WAI/demos/bad/before/home.html">
+            <button id="analyze" class="go" type="submit">Analyze</button>
+          </div>
+        </form>
+        <div class="tries" role="group" aria-labelledby="triesLabel">
+          <span id="triesLabel">Or try a sample:</span>
+          <button type="button" data-url="https://www.w3.org/WAI/demos/bad/before/home.html">W3C broken demo</button>
+          <button type="button" data-url="https://dequeuniversity.com/demo/mars/">Mars travel site</button>
+          <button type="button" data-url="/demo/bakery.html">Corner bakery</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </header>
 
-<main>
-  <div id="status" role="status" aria-live="polite"></div>
+<main id="main" class="wrap" tabindex="-1">
+  <div class="progress">
+    <ol class="steps" aria-label="Progress">
+      <li data-state="todo"><span class="dot" aria-hidden="true"></span>Fetch<span class="vh state"></span></li>
+      <li data-state="todo"><span class="dot" aria-hidden="true"></span>Audit<span class="vh state"></span></li>
+      <li data-state="todo"><span class="dot" aria-hidden="true"></span>Propose fixes<span class="vh state"></span></li>
+      <li data-state="todo"><span class="dot" aria-hidden="true"></span>Apply fixes<span class="vh state"></span></li>
+    </ol>
+    <div id="status" role="status" aria-live="polite"></div>
+  </div>
 
-  <section id="score" class="card" hidden aria-label="Violation count">
-    <div id="count"></div>
-    <div id="scoreText">
-      <div class="label">WCAG 2.1 A/AA failing elements</div>
-      <div id="summary"></div>
-      <div id="tally"></div>
+  <section id="intro" aria-label="How it works">
+    <div><b aria-hidden="true">1</b><h2>Audit</h2><p>axe-core checks the live page against WCAG 2.1 levels A and AA and counts every failing element.</p></div>
+    <div><b aria-hidden="true">2</b><h2>Propose</h2><p>Claude reads the page and the failures, then writes one small, explained patch per problem.</p></div>
+    <div><b aria-hidden="true">3</b><h2>Prove</h2><p>The patches are applied to a copy of the page and the audit runs again, side by side.</p></div>
+  </section>
+
+  <section id="score" hidden aria-labelledby="scoreHeading">
+    <div>
+      <h2 id="scoreHeading" tabindex="-1">Failing elements</h2>
+      <div id="count" aria-hidden="true"></div>
+      <p id="countText" class="vh"></p>
     </div>
-    <button id="fix" class="big" type="button" hidden>Fix</button>
+    <div>
+      <p id="summary"></p>
+      <div id="tally"></div>
+      <table id="ledger" class="ledger" hidden>
+        <caption>Failures by severity</caption>
+        <thead><tr><th scope="col">Severity</th><th scope="col">Before</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="act">
+      <button id="fix" type="button" hidden>Fix</button>
+      <div id="stamp" hidden><b></b><span></span></div>
+    </div>
   </section>
 
-  <section id="frames" hidden aria-label="Page preview">
-    <figure>
-      <figcaption>Before</figcaption>
-      <iframe id="before" title="Original page"></iframe>
-    </figure>
-    <figure id="afterFig" hidden>
-      <figcaption>After</figcaption>
-      <iframe id="after" title="Fixed page"></iframe>
-    </figure>
+  <section id="frames" hidden aria-labelledby="framesHeading">
+    <div class="head">
+      <h2 id="framesHeading">The page</h2>
+      <button id="marks" class="toggle" type="button" aria-pressed="true"><i aria-hidden="true"></i>Mark failing elements</button>
+    </div>
+    <div id="panes">
+      <figure>
+        <figcaption><span class="tag">Before</span><span class="addr"></span></figcaption>
+        <iframe id="before" title="Original page"></iframe>
+      </figure>
+      <figure id="afterFig" hidden>
+        <figcaption><span class="tag">After</span><span class="addr"></span></figcaption>
+        <iframe id="after" title="Fixed page"></iframe>
+      </figure>
+    </div>
   </section>
 
-  <section id="fixes" class="card" hidden>
-    <div id="fixHead">
+  <section id="fixes" hidden aria-labelledby="fixTitle">
+    <div class="head">
       <h2 id="fixTitle">Proposed fixes</h2>
+      <p class="hint">Hover a fix, or focus its Show button, to find it in the page.</p>
     </div>
     <ul id="patches"></ul>
   </section>
 </main>
 
+<footer>
+  <div class="wrap">
+    <p>Automated checks cover only part of WCAG 2.1. A count of zero means no automated failures were found, not that the page conforms.</p>
+  </div>
+</footer>
+
 <script>
 const AXE_URLS = ["/axe.min.js", "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.14.1/axe.min.js"];
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const MOCK = new URLSearchParams(location.search).get("mock") === "1";
+const SEVERITIES = [["critical", "#ff7a66"], ["serious", "#ffb454"], ["moderate", "#ffe27a"], ["minor", "#c2b7a6"]];
+const CRITERIA = {
+  "1.1.1": "Non-text Content", "1.2.2": "Captions", "1.3.1": "Info and Relationships", "1.3.5": "Identify Input Purpose",
+  "1.4.1": "Use of Color", "1.4.3": "Contrast (Minimum)", "1.4.4": "Resize Text", "1.4.10": "Reflow",
+  "1.4.11": "Non-text Contrast", "1.4.12": "Text Spacing", "2.1.1": "Keyboard", "2.2.1": "Timing Adjustable",
+  "2.2.2": "Pause, Stop, Hide", "2.4.1": "Bypass Blocks", "2.4.2": "Page Titled", "2.4.3": "Focus Order",
+  "2.4.4": "Link Purpose", "2.4.6": "Headings and Labels", "2.4.7": "Focus Visible", "2.5.3": "Label in Name",
+  "3.1.1": "Language of Page", "3.1.2": "Language of Parts", "3.3.1": "Error Identification",
+  "3.3.2": "Labels or Instructions", "4.1.1": "Parsing", "4.1.2": "Name, Role, Value",
+};
+const MARK_CSS = `
+  html[data-a11y-marks] [data-a11y-fail] { outline: 3px dashed #e0301e !important; outline-offset: 2px !important; }
+  html [data-a11y-show] { outline: 4px solid #d400d4 !important; outline-offset: 3px !important; box-shadow: 0 0 0 9px rgb(212 0 212 / .25) !important; }`;
 
 const $ = (id) => document.getElementById(id);
-const state = { html: "", url: "", patches: [], beforeCount: 0 };
+const state = { html: "", url: "", patches: [], beforeCount: 0, beforeSeverity: null, fixed: false };
 let axeSource;
-
 let statusTimer;
 
 function setStatus(text, { busy = false, error = false } = {}) {
@@ -119,7 +427,7 @@ function setStatus(text, { busy = false, error = false } = {}) {
     return;
   }
   const spinner = Object.assign(document.createElement("span"), { className: "spinner" });
-  const elapsed = document.createElement("span");
+  const elapsed = Object.assign(document.createElement("span"), { className: "elapsed" });
   elapsed.setAttribute("aria-hidden", "true"); // keep the live region from announcing every second
   const started = Date.now();
   statusTimer = setInterval(() => {
@@ -127,6 +435,23 @@ function setStatus(text, { busy = false, error = false } = {}) {
   }, 1000);
   el.append(spinner, text, elapsed);
 }
+
+/** Mark steps before `current` done and `current` as now ("fail" replaces now); 0 resets, 5 completes all. */
+function setStep(current, failed = false) {
+  document.querySelectorAll(".steps li").forEach((li, i) => {
+    const n = i + 1;
+    const s = n < current ? "done" : n === current ? (failed ? "fail" : "now") : "todo";
+    li.dataset.state = s;
+    li.toggleAttribute("aria-current", s === "now");
+    if (s === "now") li.setAttribute("aria-current", "step");
+    li.querySelector(".state").textContent = { done: " (done)", now: " (in progress)", fail: " (failed)", todo: "" }[s];
+  });
+}
+const currentStep = () => [...document.querySelectorAll(".steps li")].findIndex((li) => li.dataset.state === "now") + 1;
+
+// aria-disabled keeps keyboard focus on the button while it is busy; `disabled` would drop it.
+const setBusy = (button, busy) => button.setAttribute("aria-disabled", String(busy));
+const isBusy = (button) => button.getAttribute("aria-disabled") === "true";
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -171,6 +496,37 @@ function trimViolations(violations) {
   }));
 }
 
+function severityCounts(violations) {
+  const counts = {};
+  for (const v of violations) counts[v.impact || "minor"] = (counts[v.impact || "minor"] || 0) + v.nodes.length;
+  return counts;
+}
+
+/** Outline the elements axe failed inside a preview frame; the toggle shows or hides the outlines. */
+function markFailures(frame, violations) {
+  const doc = frame.contentDocument;
+  if (!doc.getElementById("a11y-marks")) {
+    const style = doc.createElement("style");
+    style.id = "a11y-marks";
+    style.textContent = MARK_CSS;
+    (doc.head || doc.documentElement).append(style);
+  }
+  for (const v of violations) {
+    for (const n of v.nodes) {
+      const selector = n.target.length === 1 && typeof n.target[0] === "string" ? n.target[0] : null;
+      try { if (selector) doc.querySelector(selector)?.setAttribute("data-a11y-fail", ""); } catch { /* unusable selector */ }
+    }
+  }
+  syncMarks();
+}
+
+function syncMarks() {
+  const on = $("marks").getAttribute("aria-pressed") === "true";
+  for (const frame of [$("before"), $("after")]) {
+    frame.contentDocument?.documentElement?.toggleAttribute("data-a11y-marks", on);
+  }
+}
+
 function describeChange(p) {
   const clip = (s) => (String(s).length > 120 ? String(s).slice(0, 117) + "…" : String(s));
   if (p.op === "setAttr") return `${p.selector}  →  ${p.name}="${clip(p.value)}"`;
@@ -185,19 +541,82 @@ function renderPatches() {
   state.patches.forEach((p, i) => {
     const li = el("li");
     li.dataset.index = i;
+    li.style.setProperty("--i", i);
+
+    const number = String(p.wcag || "").match(/\d+\.\d+\.\d+/)?.[0];
+    const wcag = el("div", "wcag");
+    wcag.append(el("b", "", number || p.wcag || "—"));
+    if (CRITERIA[number]) wcag.append(el("span", "", CRITERIA[number]));
+    if (number) wcag.prepend(el("span", "vh", "Success criterion "));
+
     const body = el("div");
     body.append(el("div", "why", p.why || ""), el("div", "change", describeChange(p)));
-    li.append(el("span", "wcag", p.wcag || "—"), body, el("span", "badge"));
+
+    const side = el("div", "side");
+    side.append(el("span", "badge"));
+    if (p.selector && p.op !== "addCss") {
+      const locate = el("button", "locate", "Show");
+      locate.type = "button";
+      locate.setAttribute("aria-label", `Show fix ${i + 1} in the page`);
+      side.append(locate);
+    }
+    li.append(wcag, body, side);
     list.append(li);
   });
 }
 
+/** A number that rolls from `from` to `value`; its text is the final value from the start. */
+function rollingNumber(className, value, from) {
+  const node = el("span", "num " + className, String(value));
+  node.style.setProperty("--n", from);
+  requestAnimationFrame(() => requestAnimationFrame(() => node.style.setProperty("--n", value)));
+  return node;
+}
+
 function renderCount(after) {
   const count = $("count");
-  count.replaceChildren(el("span", "before", String(state.beforeCount)));
-  if (after !== undefined) {
-    count.append(el("span", "arrow", "→"), el("span", "after", String(after)));
+  if (after === undefined) {
+    count.replaceChildren(rollingNumber("before", state.beforeCount, 0));
+    $("countText").textContent = `${state.beforeCount} failing elements found.`;
+    return;
   }
+  const before = el("span", "num before struck", String(state.beforeCount));
+  before.style.setProperty("--n", state.beforeCount);
+  const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  arrow.setAttribute("class", "arrow");
+  arrow.setAttribute("viewBox", "0 0 72 40");
+  arrow.innerHTML = '<path d="M4 20h60M48 6l16 14-16 14" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>';
+  count.replaceChildren(before, arrow, rollingNumber("after", after, state.beforeCount));
+  $("countText").textContent = `${state.beforeCount} failing elements before the fixes, ${after} after.`;
+}
+
+function renderLedger(afterSeverity) {
+  const body = $("ledger").tBodies[0];
+  body.replaceChildren();
+  const head = $("ledger").tHead.rows[0];
+  if (head.cells.length > 2) head.deleteCell(2);
+  if (afterSeverity) head.append(Object.assign(el("th", "", "After"), { scope: "col" }));
+  for (const [name, color] of SEVERITIES) {
+    const before = state.beforeSeverity[name] || 0;
+    const after = afterSeverity?.[name] || 0;
+    if (!before && !after) continue;
+    const row = el("tr");
+    const head = el("th", "", name[0].toUpperCase() + name.slice(1));
+    head.scope = "row";
+    head.style.setProperty("--sev", color);
+    row.append(head, el("td", "", String(before)));
+    if (afterSeverity) row.append(el("td", after < before ? "down" : "", String(after)));
+    body.append(row);
+  }
+  $("ledger").hidden = body.rows.length === 0;
+}
+
+function renderStamp(after) {
+  const before = state.beforeCount;
+  $("stamp").hidden = !(before > 0 && after < before);
+  if ($("stamp").hidden) return;
+  $("stamp").firstElementChild.textContent = `${Math.round(((before - after) / before) * 100)}% fewer`;
+  $("stamp").lastElementChild.textContent = after === 0 ? "No automated failures left" : `${after} left to review`;
 }
 
 /** Apply one patch to doc; returns the number of elements changed (0 = skipped). */
@@ -222,33 +641,43 @@ function applyPatch(doc, p) {
 }
 
 function resetView() {
+  $("intro").hidden = true;
   $("score").hidden = $("fixes").hidden = $("frames").hidden = true;
-  $("fix").hidden = $("afterFig").hidden = true;
-  $("frames").classList.remove("split");
-  $("summary").textContent = $("tally").textContent = "";
+  $("fix").hidden = $("afterFig").hidden = $("stamp").hidden = $("ledger").hidden = true;
+  $("panes").classList.remove("split");
+  $("summary").textContent = $("tally").textContent = $("countText").textContent = "";
   $("fixTitle").textContent = "Proposed fixes";
   $("after").removeAttribute("srcdoc");
+  state.fixed = false;
 }
 
 // Stage 1: fetch the page, audit it, list the fixes Claude proposes.
 async function analyze(target) {
+  if (isBusy($("analyze")) || isBusy($("fix"))) return;
   resetView();
-  $("analyze").disabled = true;
+  setBusy($("analyze"), true);
   try {
+    setStep(1);
     setStatus("Fetching the page…", { busy: true });
     const page = await api("/api/page?url=" + encodeURIComponent(target));
     state.html = page.html;
     state.url = page.url;
+    for (const addr of document.querySelectorAll(".addr")) addr.textContent = page.url;
 
     $("frames").hidden = false;
     await loadFrame($("before"), page.html);
 
+    setStep(2);
     setStatus("Running the WCAG audit…", { busy: true });
     const audit = await runAxe($("before"));
     state.beforeCount = audit.count;
+    state.beforeSeverity = severityCounts(audit.violations);
+    markFailures($("before"), audit.violations);
     renderCount();
+    renderLedger();
     $("score").hidden = false;
 
+    setStep(3);
     setStatus("Claude is reading the page…", { busy: true });
     const fixes = await api("/api/fix" + (MOCK ? "?mock=1" : ""), {
       method: "POST",
@@ -261,23 +690,27 @@ async function analyze(target) {
     renderPatches();
     $("fixes").hidden = false;
     $("fix").hidden = state.patches.length === 0;
-    $("fix").disabled = false;
+    setBusy($("fix"), false);
     $("fix").textContent = `Apply ${state.patches.length} fixes`;
+    setStep(state.patches.length ? 4 : 5);
     setStatus(state.patches.length ? "Review the fixes below, then press Fix." : "No fixes were proposed.");
   } catch (err) {
+    setStep(currentStep(), true);
     setStatus(err.message, { error: true });
   } finally {
-    $("analyze").disabled = false;
+    setBusy($("analyze"), false);
   }
 }
 
 // Stage 2: apply the patches to a second copy of the page and re-audit it.
 async function applyFixes() {
-  $("fix").disabled = true;
+  if (isBusy($("fix")) || isBusy($("analyze"))) return;
+  setBusy($("fix"), true);
   try {
+    setStep(4);
     setStatus("Applying fixes…", { busy: true });
     $("afterFig").hidden = false;
-    $("frames").classList.add("split");
+    $("panes").classList.add("split");
     await loadFrame($("after"), state.html);
     const doc = $("after").contentDocument;
 
@@ -295,40 +728,62 @@ async function applyFixes() {
 
     setStatus("Re-running the WCAG audit…", { busy: true });
     const audit = await runAxe($("after"));
+    markFailures($("after"), audit.violations);
+    state.fixed = true;
     renderCount(audit.count);
+    renderLedger(severityCounts(audit.violations));
+    renderStamp(audit.count);
     $("tally").textContent = `${applied} applied, ${skipped} skipped`;
     $("fixTitle").textContent = `Fixes (${state.patches.length})`;
     $("fix").hidden = true;
-    setStatus("Done. Hover a fix to highlight it in the After page.");
+    setBusy($("fix"), false);
+    setStep(5);
+    $("scoreHeading").focus({ preventScroll: true }); // the Fix button just disappeared from under the focus
+    setStatus("Done. Hover or focus a fix to find it in the page.");
   } catch (err) {
-    $("fix").disabled = false;
+    setBusy($("fix"), false);
+    setStep(4, true);
     setStatus(err.message, { error: true });
   }
 }
 
+/** Outline a fix's target elements in the newest preview frame, and scroll the frame to the first. */
 function highlight(event, on) {
-  const li = event.target.closest("li");
-  const doc = $("after").contentDocument;
-  if (!li || !doc || $("afterFig").hidden) return;
-  if (li.contains(event.relatedTarget)) return; // moving between children of the same row
+  const li = event.target.closest("#patches li");
+  if (!li || li.contains(event.relatedTarget)) return; // moving between children of the same row
+  const doc = (state.fixed ? $("after") : $("before")).contentDocument;
   const p = state.patches[li.dataset.index];
-  if (!p || !p.selector || p.op === "addCss") return;
+  if (!doc || !p || !p.selector || p.op === "addCss") return;
   try {
     const matches = doc.querySelectorAll(p.selector);
-    for (const node of matches) node.style.outline = on ? "3px solid magenta" : "";
+    for (const node of matches) node.toggleAttribute("data-a11y-show", on);
     if (on && matches[0]) {
       // Scroll inside the iframe only; scrollIntoView would also scroll this page away from the list.
       const win = doc.defaultView;
       const top = matches[0].getBoundingClientRect().top + win.scrollY - win.innerHeight / 2;
-      win.scrollTo({ top, behavior: "smooth" });
+      const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      win.scrollTo({ top, behavior: calm ? "auto" : "smooth" });
     }
   } catch { /* invalid selector: nothing to highlight */ }
 }
 
+$("mockTag").hidden = !MOCK;
 $("form").addEventListener("submit", (e) => { e.preventDefault(); analyze($("url").value.trim()); });
 $("fix").addEventListener("click", applyFixes);
+$("marks").addEventListener("click", () => {
+  $("marks").setAttribute("aria-pressed", String($("marks").getAttribute("aria-pressed") !== "true"));
+  syncMarks();
+});
+document.querySelector(".tries").addEventListener("click", (e) => {
+  const sample = e.target.closest("button[data-url]");
+  if (!sample) return;
+  $("url").value = new URL(sample.dataset.url, location.href).href;
+  $("form").requestSubmit();
+});
 $("patches").addEventListener("mouseover", (e) => highlight(e, true));
 $("patches").addEventListener("mouseout", (e) => highlight(e, false));
+$("patches").addEventListener("focusin", (e) => highlight(e, true));
+$("patches").addEventListener("focusout", (e) => highlight(e, false));
 </script>
 </body>
 </html>

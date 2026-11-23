@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "typecheck": "bun check",
-    "e2e": "bun scripts/e2e.ts"
+    "e2e": "bun scripts/e2e.ts",
+    "self-audit": "bun scripts/self-audit.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
