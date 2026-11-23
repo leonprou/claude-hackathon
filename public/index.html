@@ -107,12 +107,25 @@ const $ = (id) => document.getElementById(id);
 const state = { html: "", url: "", patches: [], beforeCount: 0 };
 let axeSource;
 
+let statusTimer;
+
 function setStatus(text, { busy = false, error = false } = {}) {
+  clearInterval(statusTimer);
   const el = $("status");
   el.className = error ? "error" : "";
   el.replaceChildren();
-  if (busy) el.append(Object.assign(document.createElement("span"), { className: "spinner" }));
-  el.append(text);
+  if (!busy) {
+    el.append(text);
+    return;
+  }
+  const spinner = Object.assign(document.createElement("span"), { className: "spinner" });
+  const elapsed = document.createElement("span");
+  elapsed.setAttribute("aria-hidden", "true"); // keep the live region from announcing every second
+  const started = Date.now();
+  statusTimer = setInterval(() => {
+    elapsed.textContent = `${Math.round((Date.now() - started) / 1000)}s`;
+  }, 1000);
+  el.append(spinner, text, elapsed);
 }
 
 function el(tag, className, text) {
