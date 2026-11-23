@@ -45,7 +45,7 @@ await audit(page, "1-initial");
 
 await page.fill("#url", TARGET);
 await page.click("#analyze");
-await page.waitForFunction(() => /press Fix|No fixes/.test(document.getElementById("status")!.textContent ?? ""));
+await page.waitForFunction(() => /apply them|No fixes/.test(document.getElementById("status")!.textContent ?? ""));
 await audit(page, "2-analyzed");
 
 await page.click("#fix");

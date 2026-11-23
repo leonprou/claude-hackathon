@@ -233,12 +233,13 @@
   .tag { flex: none; padding: 3px 10px; border-radius: 4px; background: var(--red); color: #fff; font: 700 .75rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
   #afterFig .tag { background: var(--green); }
   .addr { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 .875rem/1.3 var(--mono); color: var(--muted); }
-  .expand {
-    display: inline-flex; align-items: center; gap: 8px; flex: none; margin-left: auto; min-height: 36px; padding: 4px 12px;
+  figcaption button {
+    display: inline-flex; align-items: center; gap: 8px; flex: none; min-height: 36px; padding: 4px 12px;
     border: 1.5px solid var(--ink); border-radius: 8px; background: var(--sheet); font-weight: 700; font-size: .875rem; white-space: nowrap;
   }
-  .expand svg { width: 16px; height: 16px; }
-  .expand:hover, figure.full .expand { background: var(--ink); color: var(--sheet); }
+  figcaption button:first-of-type { margin-left: auto; }
+  figcaption button svg { width: 16px; height: 16px; }
+  figcaption button:hover, figure.full .expand { background: var(--ink); color: var(--sheet); }
   figure.full { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; border-radius: 0; box-shadow: none; animation: none; }
   figure.full iframe { flex: 1; height: auto; }
   html.locked { overflow: hidden; }
@@ -278,6 +279,25 @@
   footer p { margin: 0; max-width: 78ch; }
   footer .credit { margin-top: 8px; color: var(--ink); }
 
+  #view { display: none; border: 1.5px solid var(--edge); border-radius: 99px; background: var(--sheet); overflow: hidden; }
+  #view button { min-height: 40px; padding: 4px 18px; border: 0; background: transparent; font-weight: 600; font-size: .9375rem; }
+  #view button[aria-pressed=true] { background: var(--ink); color: var(--sheet); }
+  .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  /* Review layout: the fix list scrolls beside one large preview that stays on screen. */
+  @media (min-width: 1100px) {
+    main.review { width: min(1760px, 100% - 48px); grid-template-columns: minmax(360px, 4fr) minmax(0, 7fr); grid-auto-flow: row dense; }
+    main.review > section { grid-column: 1 / -1; width: min(1320px, 100%); justify-self: center; }
+    main.review > #fixes { grid-column: 1; width: auto; justify-self: stretch; }
+    main.review > #frames { grid-column: 2; width: auto; justify-self: stretch; align-self: start; position: sticky; top: 12px; }
+    main.review #panes.split { grid-template-columns: minmax(0, 1fr); }
+    main.review iframe { height: calc(100vh - 150px); min-height: 380px; }
+    main.review figure.full iframe { height: auto; }
+    main.review #view:not([hidden]) { display: inline-flex; }
+    main.review[data-view=after] #panes > figure:not(#afterFig), main.review[data-view=before] #afterFig { display: none; }
+    main.review #patches li { grid-template-columns: minmax(0, 1fr); }
+    main.review .side { justify-content: start; }
+  }
   @media (max-width: 900px) {
     .hero, .progress, #intro { grid-template-columns: minmax(0, 1fr); align-items: start; }
     #score { grid-template-columns: minmax(0, 1fr); }
@@ -388,7 +408,10 @@
   <section id="frames" hidden aria-labelledby="framesHeading">
     <div class="head">
       <h2 id="framesHeading">The page</h2>
-      <button id="marks" class="toggle" type="button" aria-pressed="true"><i aria-hidden="true"></i>Mark failing elements</button>
+      <div class="tools">
+        <div id="view" role="group" aria-label="Preview shown" hidden><button type="button" data-view="before" aria-pressed="false">Before</button><button type="button" data-view="after" aria-pressed="true">After</button></div>
+        <button id="marks" class="toggle" type="button" aria-pressed="true"><i aria-hidden="true"></i>Mark failing elements</button>
+      </div>
     </div>
     <div id="panes">
       <figure>
@@ -396,7 +419,7 @@
         <iframe id="before" title="Original page"></iframe>
       </figure>
       <figure id="afterFig" hidden>
-        <figcaption><span class="tag">After</span><span class="addr"></span><button class="expand" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Full screen</span></button></figcaption>
+        <figcaption><span class="tag">After</span><span class="addr"></span><button id="download" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M5 9l5 5 5-5M3 17h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download HTML</span></button><button class="expand" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Full screen</span></button></figcaption>
         <iframe id="after" title="Fixed page"></iframe>
       </figure>
     </div>
@@ -658,7 +681,7 @@ function renderStamp(after) {
   const before = state.beforeCount;
   $("stamp").hidden = !(before > 0 && after < before);
   if ($("stamp").hidden) return;
-  $("stamp").firstElementChild.textContent = `${Math.round(((before - after) / before) * 100)}% fewer`;
+  $("stamp").firstElementChild.textContent = after === 0 ? "All fixed" : `${Math.round(((before - after) / before) * 100)}% fixed`;
   $("stamp").lastElementChild.textContent = after === 0 ? "No automated failures left" : `${after} left to review`;
 }
 
@@ -706,6 +729,9 @@ function resetView() {
   $("panes").classList.remove("split");
   $("summary").textContent = $("tally").textContent = $("countText").textContent = "";
   $("more").hidden = true;
+  $("main").classList.remove("review");
+  $("view").hidden = true;
+  setView("after");
   $("fixTitle").textContent = "Proposed fixes";
   $("after").removeAttribute("srcdoc");
   state.fixed = false;
@@ -753,11 +779,12 @@ async function analyze(target) {
     $("fixTitle").textContent = `Proposed fixes (${state.patches.length})`;
     renderPatches();
     $("fixes").hidden = false;
+    $("main").classList.add("review");
     $("fix").hidden = state.patches.length === 0;
     setBusy($("fix"), false);
-    $("fix").textContent = `Apply ${state.patches.length} fixes`;
+    $("fix").textContent = state.patches.length === 1 ? "Apply 1 fix" : `Apply ${state.patches.length} fixes`;
     setStep(state.patches.length ? 4 : 5);
-    setStatus(state.patches.length ? "Review the fixes below, then press Fix." : "No fixes were proposed.");
+    setStatus(state.patches.length ? "Review the fixes below, then apply them." : "No fixes were proposed.");
   } catch (err) {
     setStep(currentStep(), true);
     setStatus(err.message, { error: true });
@@ -794,6 +821,8 @@ async function applyFixes() {
     const audit = await runAxe($("after"));
     markFailures($("after"), audit.violations);
     state.fixed = true;
+    $("view").hidden = false;
+    setView("after");
     renderCount(audit.count);
     renderLedger(severityCounts(audit.violations));
     renderStamp(audit.count);
@@ -811,29 +840,59 @@ async function applyFixes() {
   }
 }
 
+/** Choose which preview the review layout shows: "before" or "after". */
+function setView(view) {
+  $("main").dataset.view = view;
+  for (const b of $("view").children) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+}
+
+/** Save the fixed page as an HTML file, without the audit outlines this tool added to the preview. */
+function downloadFixed() {
+  const doc = $("after").contentDocument;
+  if (!state.fixed || !doc) return;
+  const root = doc.documentElement.cloneNode(true);
+  root.querySelector("#a11y-marks")?.remove();
+  for (const attr of ["data-a11y-marks", "data-a11y-fail", "data-a11y-show"]) {
+    root.removeAttribute(attr);
+    for (const node of root.querySelectorAll(`[${attr}]`)) node.removeAttribute(attr);
+  }
+  let name = "page";
+  try { name = new URL(state.url).hostname.replace(/^www\./, "") || name; } catch { /* keep the default name */ }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["<!doctype html>\n" + root.outerHTML], { type: "text/html" }));
+  link.download = `${name}-accessible.html`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
 /** Outline a fix's target elements in the newest preview frame, and scroll the frame to the first. */
 function highlight(event, on) {
   const li = event.target.closest("#patches li");
   if (!li || li.contains(event.relatedTarget)) return; // moving between children of the same row
-  const doc = (state.fixed ? $("after") : $("before")).contentDocument;
   const p = state.patches[li.dataset.index];
-  if (!doc || !p || !p.selector || p.op === "addCss") return;
-  try {
-    const matches = doc.querySelectorAll(p.selector);
-    for (const node of matches) node.toggleAttribute("data-a11y-show", on);
-    if (on && matches[0]) {
-      // Scroll inside the iframe only; scrollIntoView would also scroll this page away from the list.
-      const win = doc.defaultView;
-      const top = matches[0].getBoundingClientRect().top + win.scrollY - win.innerHeight / 2;
-      const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      win.scrollTo({ top, behavior: calm ? "auto" : "smooth" });
-    }
-  } catch { /* invalid selector: nothing to highlight */ }
+  if (!p || !p.selector || p.op === "addCss") return;
+  for (const frame of state.fixed ? [$("before"), $("after")] : [$("before")]) {
+    const doc = frame.contentDocument;
+    if (!doc) continue;
+    try {
+      const matches = doc.querySelectorAll(p.selector);
+      for (const node of matches) node.toggleAttribute("data-a11y-show", on);
+      if (on && matches[0]) {
+        // Scroll inside the iframe only; scrollIntoView would also scroll this page away from the list.
+        const win = doc.defaultView;
+        const top = matches[0].getBoundingClientRect().top + win.scrollY - win.innerHeight / 2;
+        const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        win.scrollTo({ top, behavior: calm ? "auto" : "smooth" });
+      }
+    } catch { /* invalid selector: nothing to highlight */ }
+  }
 }
 
 $("mockTag").hidden = !MOCK;
 $("form").addEventListener("submit", (e) => { e.preventDefault(); analyze($("url").value.trim()); });
 $("fix").addEventListener("click", applyFixes);
+$("download").addEventListener("click", downloadFixed);
+$("view").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setView(b.dataset.view); });
 $("marks").addEventListener("click", () => {
   $("marks").setAttribute("aria-pressed", String($("marks").getAttribute("aria-pressed") !== "true"));
   syncMarks();

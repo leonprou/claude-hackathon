@@ -30,7 +30,7 @@ for (const [url, shouldDrop] of CASES) {
   await page.waitForFunction(
     () => {
       const s = document.getElementById("status")!;
-      return s.className === "error" || /press Fix|No fixes/.test(s.textContent ?? "");
+      return s.className === "error" || /apply them|No fixes/.test(s.textContent ?? "");
     },
     null,
     { timeout: TIMEOUT },
