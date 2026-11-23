@@ -37,17 +37,14 @@ export interface FixInput {
 
 export const MODEL = "claude-fable-5-2";
 
-export const PROMPT = `You are fixing a web page so it meets WCAG 2.1 level AA.
+export const PROMPT = `Make this page pass WCAG 2.1 AA with the smallest change. It must still look like the same site.
 
-You get the page HTML and the violations axe-core found. Return patches that a browser applies to the live DOM.
+1. Fix every axe violation, using the axe selector.
+2. Fix what axe misses: vague link text, missing labels, alt text that doesn't say what the image shows.
+3. One addCss patch for visual failures. Check every text color against its background yourself. Keep every font, layout, background and hue. Shift each failing color darker or lighter in the same hue until it reaches 4.5:1. Make all text at least 14px with line-height 1.5. Add a focus outline, 44px controls, and a symbol where only color carries meaning. Use !important.
 
-1. Fix every axe violation. Reuse the axe target selector exactly.
-2. Then fix what axe can't judge: alt text that doesn't describe what the image shows, vague link text such as "click here", missing form labels.
-3. Write real content. Alt text says what the image shows on this page; link text says where the link goes. Decorative images get alt="".
-4. Fix the visual failures with one addCss patch that restyles the page: contrast of at least 4.5:1, readable font and size, line height of at least 1.5, visible focus, controls at least 44px, and meaning not shown by color alone. Keep the brand's colors where they pass. Use !important where inline styles would win.
-
-Ops: setAttr (set attribute "name" to "value"), setText (replace the element's text with "value"), addCss (append CSS "value" to the page; selector ""). Use name "" when the op is not setAttr.
-Give each patch its WCAG success criterion number and a one-line reason a non-expert understands.`;
+Ops: setAttr (name, value), setText (value), addCss (value; selector ""). name is "" unless setAttr.
+Each patch: WCAG criterion and a one-line reason.`;
 
 const PATCH_SCHEMA = {
   type: "object",
@@ -77,7 +74,6 @@ const PATCH_SCHEMA = {
 export function compactHtml(html: string): string {
   return html
     .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "<style></style>")
     .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, "<svg></svg>")
     .replace(/\s{2,}/g, " ");
 }
