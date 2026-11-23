@@ -1,8 +1,10 @@
 // Web app + backend in one Bun process. POST /api/fix returns MOCK_RESULT for ?mock=1,
 // otherwise fixPage() from src/engine.ts (Bun reads ANTHROPIC_API_KEY from .env).
 
+import { resolve, sep } from "node:path";
 import { fixPage, MOCK_RESULT, type FixInput } from "./src/engine";
 
+const PUBLIC_DIR = resolve(import.meta.dir, "public");
 const PORT =Number(process.env.PORT ?? 3000);
 
 function json(body: unknown, status = 200): Response {
