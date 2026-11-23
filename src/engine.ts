@@ -93,11 +93,14 @@ export async function fixPage(
   input: FixInput,
   opts: { client?: Anthropic; effort?: "low" | "medium" | "high" } = {},
 ): Promise<FixResult> {
-  const client = opts.client ?? new Anthropic();
+  const workspace = process.env.ANTHROPIC_WORKSPACE_ID;
+  const client =
+    opts.client ?? new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
     betas: ["server-side-fallback-2026-07-01"],
+    ...(process.env.FIX_FAST === "0" ? {} : { speed: "fast" }),
     fallbacks: "default",
     system: PROMPT,
     output_config: {
