@@ -286,8 +286,10 @@
 
   /* Review layout: the fix list scrolls beside one large preview that stays on screen. */
   @media (min-width: 1100px) {
-    main.review { width: min(1760px, 100% - 48px); grid-template-columns: minmax(360px, 4fr) minmax(0, 7fr); grid-auto-flow: row dense; }
-    main.review > section { grid-column: 1 / -1; width: min(1320px, 100%); justify-self: center; }
+    main.review { width: min(1760px, 100% - 48px); grid-template-columns: minmax(360px, 4fr) minmax(0, 7fr); }
+    main.review > * { grid-column: 1 / -1; width: min(1320px, 100%); justify-self: center; }
+    main.review > #score { grid-row: 2; }
+    main.review > #frames, main.review > #fixes { grid-row: 3; }
     main.review > #fixes { grid-column: 1; width: auto; justify-self: stretch; }
     main.review > #frames { grid-column: 2; width: auto; justify-self: stretch; align-self: start; position: sticky; top: 12px; }
     main.review #panes.split { grid-template-columns: minmax(0, 1fr); }
@@ -366,7 +368,7 @@
   </div>
 </header>
 
-<main id="main" class="wrap" tabindex="-1">
+<main id="main" class="wrap" tabindex="-1" data-view="before">
   <div class="progress">
     <ol class="steps" aria-label="Progress">
       <li data-state="todo"><span class="dot" aria-hidden="true"></span>Fetch<span class="vh state"></span></li>
@@ -731,7 +733,7 @@ function resetView() {
   $("more").hidden = true;
   $("main").classList.remove("review");
   $("view").hidden = true;
-  setView("after");
+  setView("before");
   $("fixTitle").textContent = "Proposed fixes";
   $("after").removeAttribute("srcdoc");
   state.fixed = false;
