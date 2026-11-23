@@ -47,6 +47,8 @@ console.log(`fix: ${result.patches.length} patches in ${((Date.now() - t0) / 100
 console.log(`summary: ${result.summary}`);
 
 const { applied, skipped } = apply(before.dom.window.document, result.patches);
+const out = process.argv.find((a) => a.startsWith("--out="))?.split("=")[1];
+if (out) await Bun.write(out, before.dom.serialize());
 const after = await audit(before.dom.serialize());
 console.log(`applied ${applied}, skipped ${skipped}`);
 console.log(`after: ${after.count} failing elements (${after.violations.map((v: any) => v.id).join(", ") || "none"})`);

@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>home</title>
+<style>
+  body { margin:0; font-family: "Brush Script MT", cursive; background:#fdfdf6; color:#c9c9c0; font-size:11px; line-height:1; }
+  .top { background:#ffe14d; padding:4px; }
+  .top span { color:#fff6b0; font-size:10px; letter-spacing:-0.5px; }
+  .nav div { display:inline-block; color:#ffd1dc; background:#ffeaf0; font-size:9px; padding:1px 2px; cursor:pointer; }
+  .hero { height:220px; background: repeating-linear-gradient(45deg,#ffd6e7 0 12px,#fff3a8 12px 24px); position:relative; }
+  .hero div { position:absolute; top:70px; left:20px; color:#fff; font-size:30px; text-transform:uppercase; }
+  .hero div small { display:block; font-size:10px; color:#fff7d6; }
+  .grid { display:flex; gap:2px; padding:2px; }
+  .card { flex:1; background:#fafaf0; padding:3px; text-align:justify; }
+  .card img { width:100%; height:90px; object-fit:cover; background:#eee; }
+  .card .t { color:#d8d8cc; font-size:14px; }
+  .price-ok { color:#9be89b; } .price-out { color:#ff9e9e; }
+  .btn { display:inline-block; width:14px; height:14px; background:#ffd84d; color:#ffe98a; font-size:8px; text-align:center; }
+  input { border:0; background:#f7f7ee; color:#ddd; width:120px; font-size:9px; outline:none; }
+  a { color:#c8e6ff; text-decoration:none; }
+  *:focus { outline:none; }
+  .foot { font-size:8px; color:#e6e6dc; padding:2px; }
+</style>
+</head>
+<body>
+<div class="top"><span>FREE DELIVERY ON ORDERS OVER $30 • NEW SOURDOUGH EVERY FRIDAY • OPEN 7AM–7PM</span></div>
+<div class="nav">
+  <div onclick="location='#'">Home</div><div onclick="location='#menu'">Menu</div><div onclick="location='#order'">Order</div><div onclick="location='#visit'">Visit</div>
+</div>
+<div class="hero"><div>Sunny Crumb Bakery<small>handmade every morning since 1987</small></div></div>
+<div class="grid" id="menu">
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400">
+    <div class="t">Country Sourdough</div>
+    <p>Our slow-fermented loaf with a crackling crust and open crumb, baked in a stone oven. Forty-eight hours from starter to shelf.</p>
+    <span class="price-ok">$8.50</span> <div class="btn" onclick="alert('added')">+</div>
+  </div>
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400">
+    <div class="t">Butter Croissant</div>
+    <p>Seventy-two layers of French butter, laminated by hand at four in the morning. Best eaten warm, standing up, before the train.</p>
+    <span class="price-out">$4.00</span> <div class="btn" onclick="alert('added')">+</div>
+  </div>
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1586985289688-ca3cf47d3e6e?w=400">
+    <div class="t">Cinnamon Knot</div>
+    <p>Brioche dough twisted with brown sugar and Ceylon cinnamon, glazed with orange syrup. Sells out by ten most Saturdays.</p>
+    <span class="price-ok">$5.25</span> <div class="btn" onclick="alert('added')">+</div>
+  </div>
+</div>
+<div id="order" style="padding:2px">
+  <input placeholder="your email">
+  <input placeholder="pickup time">
+  <div class="btn" style="width:40px" onclick="alert('sent')">go</div>
+  <a href="#">click here</a>
+</div>
+<div class="foot" id="visit">12 Harbor Lane • green prices are in stock, red are sold out • © Sunny Crumb</div>
+</body>
+</html>
